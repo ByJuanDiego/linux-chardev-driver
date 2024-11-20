@@ -25,9 +25,9 @@ int main(int argc, char *argv[])
 
 	bytes_written = write(fd, buf, strlen(buf));
 
-	if (bytes_written <= 0)
+	if (bytes_written < 0)
 	{
-		perror("Write:");
+		perror("Write");
 		exit(bytes_written);
 	}
 

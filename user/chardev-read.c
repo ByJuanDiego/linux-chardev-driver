@@ -16,14 +16,14 @@ int main()
 
 	if (fd < 0)
 	{
-		perror("Open:");
+		perror("Open");
 	}
 
 	bytes_read = read(fd, buf, BUF_LEN);
 
-	if (bytes_read <= 0)
+	if (bytes_read < 0)
 	{
-		perror("Read: ");
+		perror("Read");
 		exit(bytes_read);
 	}
 

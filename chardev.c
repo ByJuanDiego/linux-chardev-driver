@@ -101,23 +101,37 @@ static ssize_t device_read(struct file *filp, char __user *buffer, size_t length
 
 	if (!*(msg_ptr + *offset))
 	{
-		pr_err("Nothing to read\n");
+		pr_err("%s: [read] No data to read. Resetting offset to 0.\n",
+			DEVICE_NAME);
 		*offset = 0;
-		return 0;
+		return -EINVAL;
+	}
+
+	if (!buffer)
+	{
+		pr_err("%s: [read] Invalid buffer. Provided buffer pointer is NULL.\n",
+			DEVICE_NAME);
+		return -EINVAL;
 	}
 
 	msg_ptr += *offset;
 
-	while (length && *msg_ptr)
+	while (length > 0 && *msg_ptr)
 	{
-		put_user(*(msg_ptr++), buffer++);
+		if (put_user(*(msg_ptr++), buffer++))
+		{
+			pr_err("%s: [read] Failed to copy data to user buffer.\n",
+				DEVICE_NAME);
+			return -EFAULT;
+		}
 		length--;
 		bytes_read++;
 	}
 
 	*offset += bytes_read;
 
-	pr_info("%s: %d bytes read successfully\n", DEVICE_NAME, bytes_read);
+	pr_info("%s: [read] Successfully read %d bytes.\n", 
+		DEVICE_NAME, bytes_read);
 
 	return bytes_read;
 }
@@ -127,21 +141,39 @@ static ssize_t device_write(struct file *filp, const char __user *buffer, size_t
 	int bytes_written = 0;
 	char *msg_ptr = msg;
 
-	if (offset == NULL || (*offset + length) >= BUF_LEN)
-		return 0;
+	if ((*offset + length) > BUF_LEN)
+	{
+		pr_err("%s: [write] Write exceeds buffer capacity. Requested: %zu bytes, Available: %lld bytes.\n",
+			DEVICE_NAME, length, BUF_LEN - *offset);
+		*offset = 0;
+		return -E2BIG;
+	}
+
+	if (!buffer)
+	{
+		pr_err("%s: [write] Invalid buffer. Provided buffer pointer is NULL.\n",
+			DEVICE_NAME);
+		return -EINVAL;
+	}
 
 	msg_ptr += *offset;
 
-	while (length)
+	while (length > 0)
 	{
-		get_user(*(msg_ptr++), buffer++);
+		if (get_user(*(msg_ptr++), buffer++))
+		{
+			pr_err("%s: [write] Failed to copy data from user buffer.\n",
+				DEVICE_NAME);
+			return -EFAULT;
+		}
 		length--;
 		bytes_written++;
 	}
 
 	*offset += bytes_written;
 
-	pr_info("%s: %d bytes written successfully\n", DEVICE_NAME, bytes_written);
+	pr_info("%s: [write] Successfully wrote %d bytes.\n", 
+		DEVICE_NAME, bytes_written);
 
 	return bytes_written;
 }
