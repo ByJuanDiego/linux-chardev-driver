@@ -1,5 +1,10 @@
 # Read/Write Character Device Driver for Linux
 
+## Team Members
+
+- Juan Diego Castro
+- Joaquin Jordan
+
 ## Introduction
 
 This project implements a simple character device driver for Linux that supports basic **read** and **write** operations. The driver interacts with user-space programs to demonstrate kernel-level programming.
@@ -44,7 +49,7 @@ make
 
 #### Write data to the driver:
 ```bash
-sudo ./chardev_write "Hello World!"
+sudo ./chardev_write "Hello\!"
 ```
 
 #### Read data from the driver:
@@ -58,7 +63,6 @@ sudo dmesg
 ```
 
 ```
-[83634.777294] chardev: 12 bytes written successfully
-[83658.524777] chardev: 12 bytes read successfully
+[83634.777294] chardev: [write] Successfully wrote 6 bytes
+[83658.524777] chardev: [read] Successfully read 6 bytes
 ```
-# linux-chardev-driver

@@ -96,42 +96,34 @@ static int device_release(struct inode *inode, struct file *file)
 
 static ssize_t device_read(struct file *filp, char __user *buffer, size_t length, loff_t *offset)
 {
+	size_t pos = 0;
 	int bytes_read = 0;
-	const char *msg_ptr = msg;
 
-	if (!*(msg_ptr + *offset))
+	if (*offset > BUF_LEN || length > BUF_LEN)
 	{
-		pr_err("%s: [read] No data to read. Resetting offset to 0.\n",
-			DEVICE_NAME);
-		*offset = 0;
+		pr_err("%s: [read] Read exceeds buffer capacity.\n", DEVICE_NAME);
 		return -EINVAL;
 	}
 
-	if (!buffer)
+	while (length > 0)
 	{
-		pr_err("%s: [read] Invalid buffer. Provided buffer pointer is NULL.\n",
-			DEVICE_NAME);
-		return -EINVAL;
-	}
+		pos = *offset % BUF_LEN; // circular buffer behavior
 
-	msg_ptr += *offset;
+		if (*(msg + pos) == 0)
+			break;
 
-	while (length > 0 && *msg_ptr)
-	{
-		if (put_user(*(msg_ptr++), buffer++))
+		if (put_user(*(msg + pos), buffer++))
 		{
-			pr_err("%s: [read] Failed to copy data to user buffer.\n",
-				DEVICE_NAME);
+			pr_err("%s: [read] Failed to copy data to user buffer.\n", DEVICE_NAME);
 			return -EFAULT;
 		}
+
+		(*offset)++;
 		length--;
 		bytes_read++;
 	}
 
-	*offset += bytes_read;
-
-	pr_info("%s: [read] Successfully read %d bytes.\n", 
-		DEVICE_NAME, bytes_read);
+	pr_info("%s: [read] Successfully read %d bytes.\n", DEVICE_NAME, bytes_read);
 
 	return bytes_read;
 }
@@ -139,41 +131,30 @@ static ssize_t device_read(struct file *filp, char __user *buffer, size_t length
 static ssize_t device_write(struct file *filp, const char __user *buffer, size_t length, loff_t *offset)
 {
 	int bytes_written = 0;
-	char *msg_ptr = msg;
 
-	if ((*offset + length) > BUF_LEN)
+	if (*offset > BUF_LEN || length > BUF_LEN)
 	{
-		pr_err("%s: [write] Write exceeds buffer capacity. Requested: %zu bytes, Available: %lld bytes.\n",
-			DEVICE_NAME, length, BUF_LEN - *offset);
-		*offset = 0;
-		return -E2BIG;
-	}
-
-	if (!buffer)
-	{
-		pr_err("%s: [write] Invalid buffer. Provided buffer pointer is NULL.\n",
-			DEVICE_NAME);
+		offset = 0;
+		pr_err("%s: [write] Write exceeds buffer capacity.\n", DEVICE_NAME);
 		return -EINVAL;
 	}
 
-	msg_ptr += *offset;
-
 	while (length > 0)
 	{
-		if (get_user(*(msg_ptr++), buffer++))
+		size_t pos = *offset % BUF_LEN; // circular buffer behavior
+
+		if (get_user(*(msg + pos), buffer++))
 		{
-			pr_err("%s: [write] Failed to copy data from user buffer.\n",
-				DEVICE_NAME);
+			pr_err("%s: [write] Failed to copy data from user buffer.\n", DEVICE_NAME);
 			return -EFAULT;
 		}
+
+		(*offset)++;
 		length--;
 		bytes_written++;
 	}
 
-	*offset += bytes_written;
-
-	pr_info("%s: [write] Successfully wrote %d bytes.\n", 
-		DEVICE_NAME, bytes_written);
+	pr_info("%s: [write] Successfully wrote %d bytes.\n", DEVICE_NAME, bytes_written);
 
 	return bytes_written;
 }

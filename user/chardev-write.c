@@ -11,6 +11,12 @@ char buf[BUF_LEN];
 
 int main(int argc, char *argv[])
 {
+	if (argc < 1)
+	{
+		perror("Please enter a string to write in the kernel space buffer\n");
+		exit(1);
+	}
+
 	int fd, bytes_written;
 
 	strcpy(buf, argv[1]);
