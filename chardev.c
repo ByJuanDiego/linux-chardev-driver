@@ -1,3 +1,7 @@
+/*
+	Created by Juan Diego Castro
+*/
+
 #include <linux/atomic.h>
 #include <linux/cdev.h>
 #include <linux/delay.h>
@@ -17,10 +21,15 @@ static int device_open(struct inode *, struct file *);
 static int device_release(struct inode *, struct file *);
 static ssize_t device_read(struct file *, char __user *, size_t, loff_t *);
 static ssize_t device_write(struct file *, const char __user *, size_t, loff_t *);
+static loff_t device_llseek(struct file *filp, loff_t offset, int whence);
 
 #define SUCCESS 0
 #define DEVICE_NAME "chardev"
 #define BUF_LEN 80
+
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
 
 static int major;
 
@@ -40,7 +49,8 @@ static struct file_operations chardev_fops = {
 	.read = device_read,
 	.write = device_write,
 	.open = device_open,
-	.release = device_release
+	.release = device_release,
+	.llseek = device_llseek
 };
 
 static int __init chardev_init(void)
@@ -101,6 +111,7 @@ static ssize_t device_read(struct file *filp, char __user *buffer, size_t length
 
 	if (*offset > BUF_LEN || length > BUF_LEN)
 	{
+		offset = 0;
 		pr_err("%s: [read] Read exceeds buffer capacity.\n", DEVICE_NAME);
 		return -EINVAL;
 	}
@@ -157,6 +168,37 @@ static ssize_t device_write(struct file *filp, const char __user *buffer, size_t
 	pr_info("%s: [write] Successfully wrote %d bytes.\n", DEVICE_NAME, bytes_written);
 
 	return bytes_written;
+}
+
+static loff_t device_llseek(struct file *filp, loff_t offset, int whence)
+{
+	switch (whence)
+	{
+		case SEEK_SET:
+			if ((offset < 0) || (offset > BUF_LEN))
+				return -EINVAL;
+			filp->f_pos = offset;
+			break;
+
+		case SEEK_CUR:
+			if ((filp->f_pos + offset) < 0 || (filp->f_pos + offset) > BUF_LEN)
+				return -EINVAL;
+			filp->f_pos += offset;
+			break;
+
+		case SEEK_END:
+			if ((BUF_LEN + offset) < 0 || (BUF_LEN + offset) > BUF_LEN)
+				return -EINVAL;
+			filp->f_pos = BUF_LEN + offset;
+			break;
+
+		default:
+			pr_err("%s: [lseek] Invalid 'whence' value\n", DEVICE_NAME);
+			return -EINVAL;
+	}
+
+	pr_info("%s: [lseek] Buffer offset successfully set to %lld\n", DEVICE_NAME, filp->f_pos);
+	return filp->f_pos;
 }
 
 module_init(chardev_init);
